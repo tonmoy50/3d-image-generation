@@ -72,8 +72,6 @@ ehthumbs.db
 *.npz
 *.onnx
 
-# Colab / IPython
-*.ipynb
 
 # Custom
 data/
