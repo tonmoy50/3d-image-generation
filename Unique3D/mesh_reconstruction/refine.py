@@ -10,6 +10,7 @@ from scripts.project_mesh import multiview_color_projection, get_cameras_list
 from scripts.utils import to_py3d_mesh, from_py3d_mesh, init_target
 
 def run_mesh_refine(vertices, faces, pils: List[Image.Image], steps=100, start_edge_len=0.02, end_edge_len=0.005, decay=0.99, update_normal_interval=10, update_warmup=10, return_mesh=True, process_inputs=True, process_outputs=True):
+    vertices, faces = vertices.to("cuda"), faces.to("cuda")
     if process_inputs:
         vertices = vertices * 2 / 1.35
         vertices[..., [0, 2]] = - vertices[..., [0, 2]]
@@ -17,9 +18,9 @@ def run_mesh_refine(vertices, faces, pils: List[Image.Image], steps=100, start_e
     poission_steps = []
 
     assert len(pils) == 4
-    mv,proj = make_star_cameras_orthographic(4, 1)          
+    mv,proj = make_star_cameras_orthographic(4, 1)
     renderer = NormalsRenderer(mv,proj,list(pils[0].size))
-    # cameras = make_star_cameras_orthographic_py3d([0, 270, 180, 90], device="cuda", focal=1., dist=4.0)
+    # cameras = make_star_cameras_orthographic_py3d([0, 270, 180, 90], device="cuda", focal=1., dist=4.0)     
     # renderer = Pytorch3DNormalsRenderer(cameras, list(pils[0].size), device="cuda")
 
     target_images = init_target(pils, new_bkgd=(0., 0., 0.)) # 4s
@@ -67,7 +68,7 @@ def run_mesh_refine(vertices, faces, pils: List[Image.Image], steps=100, start_e
         
         vertices,faces = opt.remesh(poisson=(i in poission_steps))
     
-    vertices, faces = vertices.detach(), faces.detach()
+    vertices, faces = vertices.detach().cpu(), faces.detach().cpu()
     
     if process_outputs:
         vertices = vertices / 2 * 1.35

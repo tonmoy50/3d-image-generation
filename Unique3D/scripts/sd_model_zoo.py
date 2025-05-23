@@ -4,7 +4,7 @@ import torch
 from copy import deepcopy
 
 ENABLE_CPU_CACHE = False
-DEFAULT_BASE_MODEL = "runwayml/stable-diffusion-v1-5"
+DEFAULT_BASE_MODEL = "benjamin-paine/stable-diffusion-v1-5"
 
 cached_models = {}  # cache for models to avoid repeated loading, key is model name
 def cache_model(func):
@@ -65,10 +65,10 @@ def load_image_encoder():
     )
     return image_encoder
 
-def load_common_sd15_pipe(base_model=DEFAULT_BASE_MODEL, device="auto", controlnet=None, ip_adapter=False, plus_model=True, torch_dtype=torch.float16, model_cpu_offload_seq=None, enable_sequential_cpu_offload=False, vae_slicing=False, pipeline_class=None, **kwargs):
+def load_common_sd15_pipe(base_model=DEFAULT_BASE_MODEL, device="balanced", controlnet=None, ip_adapter=False, plus_model=True, torch_dtype=torch.float16, model_cpu_offload_seq=None, enable_sequential_cpu_offload=False, vae_slicing=False, pipeline_class=None, **kwargs):
     model_kwargs = dict(
         torch_dtype=torch_dtype, 
-        device_map=device,
+        # device_map=device,
         requires_safety_checker=False, 
         safety_checker=None,
     )
@@ -119,9 +119,8 @@ def load_common_sd15_pipe(base_model=DEFAULT_BASE_MODEL, device="auto", controln
     if enable_sequential_cpu_offload:
         pipe.enable_sequential_cpu_offload()
     else:
-        pipe = pipe.to("cuda")
         pass
-        # pipe.enable_model_cpu_offload()
+        pipe.enable_model_cpu_offload()
     if vae_slicing:
         pipe.enable_vae_slicing()
         

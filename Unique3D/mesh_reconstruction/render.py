@@ -12,11 +12,9 @@ def _warmup(glctx, device=None):
     tri = tensor([[0, 1, 2]], dtype=torch.int32)
     dr.rasterize(glctx, pos, tri, resolution=[256, 256])
 
-glctx = dr.RasterizeGLContext(output_db=False, device="cuda")
-
 class NormalsRenderer:
     
-    _glctx:dr.RasterizeGLContext = None
+    _glctx:dr.RasterizeCudaContext = None
     
     def __init__(
             self,
@@ -31,7 +29,7 @@ class NormalsRenderer:
         else:
             self._mvp = mvp
         self._image_size = image_size
-        self._glctx = glctx
+        self._glctx = dr.RasterizeCudaContext(device=device)
         _warmup(self._glctx, device)
 
     def render(self,
@@ -51,8 +49,6 @@ class NormalsRenderer:
         col = torch.concat((col,alpha),dim=-1) #C,H,W,4
         col = dr.antialias(col, rast_out, vertices_clip, faces) #C,H,W,4
         return col #C,H,W,4
-
-
 
 from pytorch3d.structures import Meshes
 from pytorch3d.renderer.mesh.shader import ShaderBase
@@ -91,7 +87,7 @@ def render_mesh_vertex_color(mesh, cameras, H, W, blur_radius=0.0, faces_per_pix
         faces_per_pixel=faces_per_pixel,
         clip_barycentric_coords=True,
         bin_size=None,
-        max_faces_per_bin=None,
+        max_faces_per_bin=500000,
     )
 
     # Create a renderer by composing a rasterizer and a shader
@@ -113,7 +109,7 @@ def render_mesh_vertex_color(mesh, cameras, H, W, blur_radius=0.0, faces_per_pix
         images, _ = renderer(mesh)
     return images   # BHW4
 
-class Pytorch3DNormalsRenderer: # 100 times slower!!!
+class Pytorch3DNormalsRenderer:
     def __init__(self, cameras, image_size, device):
         self.cameras = cameras.to(device)
         self._image_size = image_size

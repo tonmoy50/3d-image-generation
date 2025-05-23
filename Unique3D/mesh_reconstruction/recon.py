@@ -12,7 +12,7 @@ from scripts.utils import to_py3d_mesh, init_target
 def reconstruct_stage1(pils: List[Image.Image], steps=100, vertices=None, faces=None, start_edge_len=0.15, end_edge_len=0.005, decay=0.995, return_mesh=True, loss_expansion_weight=0.1, gain=0.1):
     vertices, faces = vertices.to("cuda"), faces.to("cuda")
     assert len(pils) == 4
-    mv,proj = make_star_cameras_orthographic(4, 1)
+    mv,proj = make_star_cameras_orthographic(4, 1)          
     renderer = NormalsRenderer(mv,proj,list(pils[0].size))
     # cameras = make_star_cameras_orthographic_py3d([0, 270, 180, 90], device="cuda", focal=1., dist=4.0)
     # renderer = Pytorch3DNormalsRenderer(cameras, list(pils[0].size), device="cuda")
@@ -51,7 +51,7 @@ def reconstruct_stage1(pils: List[Image.Image], steps=100, vertices=None, faces=
 
         vertices,faces = opt.remesh(poisson=False)
 
-    vertices, faces = vertices.detach(), faces.detach()
+    vertices, faces = vertices.detach().cpu(), faces.detach().cpu()
     
     if return_mesh:
         return to_py3d_mesh(vertices, faces)

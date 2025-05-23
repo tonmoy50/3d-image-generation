@@ -13,17 +13,6 @@ from pytorch3d.renderer import (
 )
 from pytorch3d.renderer import MeshRasterizer
 
-def get_camera(world_to_cam, fov_in_degrees=60, focal_length=1 / (2**0.5), cam_type='fov'):
-    # pytorch3d expects transforms as row-vectors, so flip rotation: https://github.com/facebookresearch/pytorch3d/issues/1183
-    R = world_to_cam[:3, :3].t()[None, ...]
-    T = world_to_cam[:3, 3][None, ...]
-    if cam_type == 'fov':
-        camera = FoVPerspectiveCameras(device=world_to_cam.device, R=R, T=T, fov=fov_in_degrees, degrees=True)
-    else:
-        focal_length = 1 / focal_length
-        camera = FoVOrthographicCameras(device=world_to_cam.device, R=R, T=T, min_x=-focal_length, max_x=focal_length, min_y=-focal_length, max_y=focal_length)
-    return camera
-
 def render_pix2faces_py3d(meshes, cameras, H=512, W=512, blur_radius=0.0, faces_per_pixel=1):
     """
     Renders pix2face of visible faces.
@@ -67,7 +56,7 @@ def _warmup(glctx, device=None):
 
 class Pix2FacesRenderer:
     def __init__(self, device="cuda"):
-        self._glctx = dr.RasterizeGLContext(output_db=False, device=device)
+        self._glctx = dr.RasterizeCudaContext(device=device)
         self.device = device
         _warmup(self._glctx, device)
 
@@ -95,11 +84,14 @@ class Pix2FacesRenderer:
         pix_to_face = rast_out[..., -1].to(torch.int32) - 1
         return pix_to_face
 
-pix2faces_renderer = Pix2FacesRenderer()
+pix2faces_renderer = None
 
 def get_visible_faces(meshes: Meshes, cameras: CamerasBase, resolution=1024):
-    # pix_to_face = render_pix2faces_py3d(meshes, cameras, H=resolution, W=resolution)['pix_to_face']
-    pix_to_face = pix2faces_renderer.render_pix2faces_nvdiff(meshes, cameras, H=resolution, W=resolution)
+    # global pix2faces_renderer
+    # if pix2faces_renderer is None:
+    #     pix2faces_renderer = Pix2FacesRenderer()
+    pix_to_face = render_pix2faces_py3d(meshes, cameras, H=resolution, W=resolution)['pix_to_face']
+    # pix_to_face = pix2faces_renderer.render_pix2faces_nvdiff(meshes, cameras, H=resolution, W=resolution)
 
     unique_faces = torch.unique(pix_to_face.flatten())
     unique_faces = unique_faces[unique_faces != -1]
@@ -310,12 +302,19 @@ def multiview_color_projection(meshes: Meshes, image_list: List[Image.Image], ca
     del meshes
     return ret_mesh
 
+def get_camera(R, T, fov_in_degrees=60, focal_length=1 / (2**0.5), cam_type='fov'):
+    if cam_type == 'fov':
+        camera = FoVPerspectiveCameras(device=R.device, R=R, T=T, fov=fov_in_degrees, degrees=True)
+    else:
+        focal_length = 1 / focal_length
+        camera = FoVOrthographicCameras(device=R.device, R=R, T=T, min_x=-focal_length, max_x=focal_length, min_y=-focal_length, max_y=focal_length)
+    return camera
+
 def get_cameras_list(azim_list, device, focal=2/1.35, dist=1.1):
     ret = []
     for azim in azim_list:
         R, T = look_at_view_transform(dist, 0, azim)
-        w2c = torch.cat([R[0].T, T[0, :, None]], dim=1)
-        cameras: OrthographicCameras = get_camera(w2c, focal_length=focal, cam_type='orthogonal').to(device)
+        cameras: OrthographicCameras = get_camera(R, T, focal_length=focal, cam_type='orthogonal').to(device)
         ret.append(cameras)
     return ret
 
