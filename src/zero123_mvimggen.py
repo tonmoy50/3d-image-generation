@@ -109,4 +109,4 @@ if __name__ == "__main__":
         remove_background=True,
         return_intermediate_images=False
     )
-    print("Prediction complete. Check /tmp for output images.")
+    print("Prediction complete")
