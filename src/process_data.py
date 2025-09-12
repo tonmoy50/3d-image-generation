@@ -67,7 +67,9 @@ def process_single_mesh(filename):
 
         images = renderer(mesh)
         rgb_image = images[0, ..., :3].cpu().numpy()
-        plt.imsave(f"{filename}/{view}.png", rgb_image)
+
+        output_dir = os.path.join(CUR_DIR, "data", "gtoutputs", filename)
+        plt.imsave(os.path.join(output_dir, f"{view}.png"), rgb_image)
 
         print(f"Saved {filename}/{view}.png")
 

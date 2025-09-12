@@ -2,6 +2,7 @@ import os
 from PIL import Image
 from omegaconf import OmegaConf
 import numpy as np
+import pandas as pd
 import time
 import math
 
@@ -140,29 +141,20 @@ def sample_model(
             return torch.clamp((x_samples_ddim + 1.0) / 2.0, min=0.0, max=1.0).cpu()
 
 
-def main(raw_image_path: str):
+def main(dataset_path: str):
+
     device_idx = 0
     config = "configs/sd-objaverse-finetune-c_concat-256.yaml"
     h = 256
     w = 256
     # ckpt = "/nobackup/nhaldert/weights/105000.ckpt"
     ckpt = "/nobackup/nhaldert/weights/zero123-xl.ckpt"
-
-    raw_im = Image.open(raw_image_path).convert("RGBA")
-    raw_im.thumbnail([1536, 1536], Image.Resampling.LANCZOS)
-
     device = f"cuda:{device_idx}" if torch.cuda.is_available() else "cpu"
     config = OmegaConf.load(config)
 
     models = dict()
     models["carvekit"] = create_carvekit_interface()
     models["turncam"] = load_model_from_config(config, ckpt, device=device)
-
-    input_im = preprocess_image(models, raw_im, True)
-
-    input_im = transforms.ToTensor()(input_im).unsqueeze(0).to(device)
-    input_im = input_im * 2 - 1
-    input_im = transforms.functional.resize(input_im, [h, w])
 
     sampler = DDIMSampler(models["turncam"])
     used_x = [0.0, 0.0, 0.0, 0.0]
@@ -174,31 +166,53 @@ def main(raw_image_path: str):
     ddim_eta = 1.0
     precision = "fp32"
 
-    i = 0
-    for x, y, z in zip(used_x, used_y, used_z):
-        print(f"Processing image {i} with x={x}, y={y}, z={z}")
-        x_samples_ddim = sample_model(
-            input_im,
-            models["turncam"],
-            sampler,
-            precision,
-            h,
-            w,
-            ddim_steps,
-            n_samples,
-            scale,
-            ddim_eta,
-            x,
-            y,
-            z,
-        )
-        x_sample = 255.0 * rearrange(x_samples_ddim[0].cpu().numpy(), "c h w -> h w c")
-        output_im = Image.fromarray(x_sample.astype(np.uint8))
-        output_im.save(os.path.join(CUR_DIR, "outputs", f"output_{i}.png"))
-        print(
-            f"Saved output image {i} to {os.path.join(CUR_DIR, 'outputs', f'output_{i}.png')}"
-        )
-        i += 1
+    dataset_df = pd.read_csv(dataset_path)
+    all_file_names = dataset_df["file_name"].tolist()
+    for file_name in all_file_names:
+        file_name = os.path.splitext(file_name)[0]
+        raw_image_path = os.path.join(CUR_DIR, "data", file_name, "front.png")
+        assert os.path.isfile(raw_image_path), f"File not found: {raw_image_path}"
+
+        print(f"Processing {file_name} ...")
+
+        raw_im = Image.open(raw_image_path).convert("RGBA")
+        raw_im.thumbnail([1536, 1536], Image.Resampling.LANCZOS)
+        input_im = preprocess_image(models, raw_im, True)
+        input_im = transforms.ToTensor()(input_im).unsqueeze(0).to(device)
+        input_im = input_im * 2 - 1
+        input_im = transforms.functional.resize(input_im, [h, w])
+
+        i = 0
+        image_face = ["front", "right", "left", "back"]
+        for x, y, z in zip(used_x, used_y, used_z):
+            print(f"Processing {file_name}")
+            x_samples_ddim = sample_model(
+                input_im,
+                models["turncam"],
+                sampler,
+                precision,
+                h,
+                w,
+                ddim_steps,
+                n_samples,
+                scale,
+                ddim_eta,
+                x,
+                y,
+                z,
+            )
+            x_sample = 255.0 * rearrange(
+                x_samples_ddim[0].cpu().numpy(), "c h w -> h w c"
+            )
+            output_im = Image.fromarray(x_sample.astype(np.uint8))
+            output_dir = os.path.join(CUR_DIR, "data", "outputs", "zero123", file_name)
+            os.makedirs(output_dir, exist_ok=True)
+            output_im.save(os.path.join(output_dir, f"{image_face[i]}.png"))
+            # print(
+            #     f"Saved output image {i} to {os.path.join(CUR_DIR, 'outputs', file_name, f'output_{image_face[i]}.png')}"
+            # )
+            i += 1
+        # break
 
     # output_ims = []
     # for x_sample in x_samples_ddim:
@@ -216,8 +230,8 @@ def main(raw_image_path: str):
 
 
 if __name__ == "__main__":
-    raw_image_path = "rendered_img.png"  # Path to the input image
-    output_image_path = "output_image.png"  # Path to save the output image
-    os.makedirs(os.path.join(CUR_DIR, "outputs"), exist_ok=True)
-    main(raw_image_path)
+    # raw_image_path = "rendered_img.png"
+    # os.makedirs(os.path.join(CUR_DIR, "outputs"), exist_ok=True)
+    dataset_path = os.path.join(CUR_DIR, "dataset_files.csv")
+    main(dataset_path)
     # print(f"Processed image saved to {output_image_path}")
