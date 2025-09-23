@@ -7,6 +7,8 @@ import os
 import pandas as pd
 import matplotlib.pyplot as plt
 
+from tqdm import tqdm
+
 from pytorch3d.io import load_objs_as_meshes
 from pytorch3d.structures import Meshes
 from pytorch3d.renderer import (
@@ -21,7 +23,7 @@ from pytorch3d.renderer import (
 from mesh2rgb import normalize_mesh_torch
 
 CUR_DIR = os.path.dirname(os.path.abspath(__file__))
-DATASET_DIR = "/nobackup/nhaldert/data"
+DATASET_DIR = "/nobackup/nhaldert/data/"
 
 
 def process_single_mesh(filename):
@@ -46,7 +48,7 @@ def process_single_mesh(filename):
     }
     T = torch.tensor([[0, 0, 1]], device=device)
 
-    os.makedirs(filename, exist_ok=True)
+    os.makedirs(os.path.join(DATASET_DIR, "outputs", "gt", filename), exist_ok=True)
     for view, R in angles.items():
         if view == "back":
             lights = PointLights(device=device, location=[[-2.0, 2.0, 2.0]])
@@ -68,7 +70,7 @@ def process_single_mesh(filename):
         images = renderer(mesh)
         rgb_image = images[0, ..., :3].cpu().numpy()
 
-        output_dir = os.path.join(CUR_DIR, "data", "gtoutputs", filename)
+        output_dir = os.path.join(DATASET_DIR, "outputs", "gt", filename)
         plt.imsave(os.path.join(output_dir, f"{view}.png"), rgb_image)
 
         print(f"Saved {filename}/{view}.png")
@@ -76,51 +78,55 @@ def process_single_mesh(filename):
 
 def prep_file_reference():
     df = pd.DataFrame(columns=["file_name", "path"])
-    all_files = os.listdir(DATASET_DIR)
+    all_files = os.listdir(os.path.join(DATASET_DIR, "GSO"))
 
     for file in all_files:
-        file_path = os.path.join(DATASET_DIR, file)
+        file_path = os.path.join(DATASET_DIR, "GSO", file)
         if os.path.isfile(file_path):
             # file_size = os.path.getsize(file_path)
             df = df._append({"file_name": file, "path": file_path}, ignore_index=True)
 
-    print(df)
+    print(df.head())
     df.to_csv(os.path.join(CUR_DIR, "dataset_files.csv"), index=False)
 
 
 def main():
-    # prep_file_reference()
+    prep_file_reference()
     dataset_df = pd.read_csv(os.path.join(CUR_DIR, "dataset_files.csv"))
     all_file_names = dataset_df["file_name"].tolist()
     all_file_paths = dataset_df["path"].tolist()
 
-    os.makedirs(os.path.join(CUR_DIR, "data"), exist_ok=True)
+    os.makedirs(os.path.join(DATASET_DIR, "outputs", "gt"), exist_ok=True)
 
     for filename, path in zip(all_file_names, all_file_paths):
         # file_path = os.path.join(DATASET_DIR, filename)
         if os.path.isfile(path):
             # compressed_file = io.BytesIO(os.path.join(DATASET_DIR, file))
-            with zipfile.ZipFile(path, "r") as zip_ref:
-                zip_ref.extract("meshes/model.obj", CUR_DIR)
-                zip_ref.extract("meshes/model.mtl", CUR_DIR)
-                zip_ref.extract("materials/textures/texture.png", CUR_DIR)
+            try:
+                with zipfile.ZipFile(path, "r") as zip_ref:
+                    zip_ref.extract("meshes/model.obj", CUR_DIR)
+                    zip_ref.extract("meshes/model.mtl", CUR_DIR)
+                    zip_ref.extract("materials/textures/texture.png", CUR_DIR)
 
-            shutil.move(
-                os.path.join(CUR_DIR, "meshes", "model.obj"),
-                os.path.join(CUR_DIR, "model.obj"),
-            )
-            shutil.move(
-                os.path.join(CUR_DIR, "meshes", "model.mtl"),
-                os.path.join(CUR_DIR, "model.mtl"),
-            )
-            shutil.move(
-                os.path.join(CUR_DIR, "materials", "textures", "texture.png"),
-                os.path.join(CUR_DIR, "texture.png"),
-            )
+                shutil.move(
+                    os.path.join(CUR_DIR, "meshes", "model.obj"),
+                    os.path.join(CUR_DIR, "model.obj"),
+                )
+                shutil.move(
+                    os.path.join(CUR_DIR, "meshes", "model.mtl"),
+                    os.path.join(CUR_DIR, "model.mtl"),
+                )
+                shutil.move(
+                    os.path.join(CUR_DIR, "materials", "textures", "texture.png"),
+                    os.path.join(CUR_DIR, "texture.png"),
+                )
 
-            os.removedirs(os.path.join(CUR_DIR, "meshes"))
-            os.removedirs(os.path.join(CUR_DIR, "materials", "textures"))
-            # os.removedirs(os.path.join(CUR_DIR, "materials"))
+                os.removedirs(os.path.join(CUR_DIR, "meshes"))
+                os.removedirs(os.path.join(CUR_DIR, "materials", "textures"))
+                # os.removedirs(os.path.join(CUR_DIR, "materials"))
+            except Exception as e:
+                print(f"Error processing {filename}: {e}")
+                continue
 
         process_single_mesh(filename)
         print(f"Processed file: {filename}")

@@ -11,7 +11,7 @@ from clip import clip
 from scipy.spatial import cKDTree, distance
 
 CUR_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(CUR_DIR, "data")
+DATA_DIR = os.path.join("/nobackup/nhaldert", "data")
 
 
 def get_psnr(img1, img2):
@@ -46,7 +46,6 @@ def get_lpips(img1, img2):
 
 
 def get_clip_sim(clip_model, preprocess, img1, img2):
-    # Ensure images are in the correct format
     # if img1.ndim == 3 and img1.shape[2] == 3:
     #     img1 = np.transpose(img1, (2, 0, 1))  # Convert to CxHxW
     # if img2.ndim == 3 and img2.shape[2] == 3:
@@ -221,28 +220,34 @@ def main():
     )
 
     all_filenames = df_dataset["file_name"].tolist()
+    print(f"Total files to process: {len(all_filenames)}")
     views = ["front", "left", "right", "back"]
     for file_name in all_filenames:
         file_name = os.path.splitext(file_name)[0]
+        print(f"Processing {file_name} ...")
         for view in views:
             gt_img_path = os.path.join(
                 DATA_DIR, "outputs", "gt", file_name, f"{view}.png"
             )
-            assert os.path.isfile(gt_img_path), f"File not found: {gt_img_path}"
+            try:
+                assert os.path.isfile(gt_img_path), f"File not found: {gt_img_path}"
 
-            unique3d_img_path = os.path.join(
-                DATA_DIR, "outputs", "unique3d", file_name, f"{view}.png"
-            )
-            assert os.path.isfile(
-                unique3d_img_path
-            ), f"File not found: {unique3d_img_path}"
+                unique3d_img_path = os.path.join(
+                    DATA_DIR, "outputs", "unique3d", file_name, f"{view}.png"
+                )
+                assert os.path.isfile(
+                    unique3d_img_path
+                ), f"File not found: {unique3d_img_path}"
 
-            zero123_img_path = os.path.join(
-                DATA_DIR, "outputs", "zero123", file_name, f"{view}.png"
-            )
-            assert os.path.isfile(
-                zero123_img_path
-            ), f"File not found: {zero123_img_path}"
+                zero123_img_path = os.path.join(
+                    DATA_DIR, "outputs", "zero123", file_name, f"{view}.png"
+                )
+                assert os.path.isfile(
+                    zero123_img_path
+                ), f"File not found: {zero123_img_path}"
+            except AssertionError as e:
+                continue
+                print(e)
 
             print(f"Processing {file_name} - {view} ...")
             gt_img = (
@@ -313,7 +318,7 @@ def main():
 
 if __name__ == "__main__":
     print(f"Current directory: {CUR_DIR}")
-    # main()
+    main()
     view_metrics(os.path.join(CUR_DIR, "metrics_results.csv"))
 
     # print(

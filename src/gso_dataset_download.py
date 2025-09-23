@@ -57,7 +57,7 @@ next_url = "/models?page={}&per_page=100&q=collections:{}".format(page, collecti
 # Path to download a single model in the collection
 download_url = base_url + fuel_version + "/{}/models/".format(owner_name)
 
-os.makedirs("nobackup/nhaldert/data/GSO", exist_ok=True)
+os.makedirs("/nobackup/nhaldert/data/GSO", exist_ok=True)
 # Iterate over the pages
 while True:
     url = base_url + fuel_version + next_url

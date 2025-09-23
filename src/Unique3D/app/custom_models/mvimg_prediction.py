@@ -66,7 +66,7 @@ import pandas as pd
 
 BASE_DIR = "/u/nhaldert/work_dir/3d-image-generation/src"
 CUR_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(BASE_DIR, "data")
+DATA_DIR = os.path.join("/nobackup/nhaldert", "data")
 
 
 def main():
@@ -81,15 +81,19 @@ def main():
     all_filenames = df["file_name"].tolist()
     for file_name in all_filenames:
         file_name = os.path.splitext(file_name)[0]
-        raw_image_path = os.path.join(BASE_DIR, "data", file_name, "front.png")
-        assert os.path.isfile(raw_image_path), f"File not found: {raw_image_path}"
+        raw_image_path = os.path.join(DATA_DIR, "outputs", "gt", file_name, "front.png")
+
+        try:
+            assert os.path.isfile(raw_image_path), f"File not found: {raw_image_path}"
+        except AssertionError as e:
+            print(e)
+            continue
 
         print(f"Processing {file_name} ...")
 
         raw_im = Image.open(raw_image_path).convert("RGBA")
         output_dir = os.path.join(
-            BASE_DIR,
-            "data",
+            DATA_DIR,
             "outputs",
             "unique3d",
             file_name,

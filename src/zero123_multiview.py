@@ -23,6 +23,7 @@ from ldm.models.diffusion.ddim import DDIMSampler
 
 
 CUR_DIR = os.path.dirname(os.path.abspath(__file__))
+DATASET_DIR = "/nobackup/nhaldert/data/"
 
 
 def preprocess_image(models, input_im, preprocess):
@@ -170,8 +171,15 @@ def main(dataset_path: str):
     all_file_names = dataset_df["file_name"].tolist()
     for file_name in all_file_names:
         file_name = os.path.splitext(file_name)[0]
-        raw_image_path = os.path.join(CUR_DIR, "data", file_name, "front.png")
-        assert os.path.isfile(raw_image_path), f"File not found: {raw_image_path}"
+        raw_image_path = os.path.join(
+            DATASET_DIR, "outputs", "gt", file_name, "front.png"
+        )
+
+        try:
+            assert os.path.isfile(raw_image_path), f"File not found: {raw_image_path}"
+        except AssertionError as e:
+            print(e)
+            continue
 
         print(f"Processing {file_name} ...")
 
@@ -205,7 +213,7 @@ def main(dataset_path: str):
                 x_samples_ddim[0].cpu().numpy(), "c h w -> h w c"
             )
             output_im = Image.fromarray(x_sample.astype(np.uint8))
-            output_dir = os.path.join(CUR_DIR, "data", "outputs", "zero123", file_name)
+            output_dir = os.path.join(DATASET_DIR, "outputs", "zero123", file_name)
             os.makedirs(output_dir, exist_ok=True)
             output_im.save(os.path.join(output_dir, f"{image_face[i]}.png"))
             # print(
