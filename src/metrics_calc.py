@@ -60,6 +60,9 @@ def get_clip_sim(clip_model, preprocess, img1, img2):
             preprocess(img2).unsqueeze(0).to("cuda")
         )
 
+    img1_features = img1_features / img1_features.norm(dim=-1, keepdim=True)
+    img2_features = img2_features / img2_features.norm(dim=-1, keepdim=True)
+
     return (img1_features @ img2_features.T).item()
 
 
