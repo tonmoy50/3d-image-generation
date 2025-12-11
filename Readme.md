@@ -1,4 +1,4 @@
-# Work Regarding 3D Image Generation
+# Work Regarding 3D Reconstruction and Modelling
 
 ## Related Works
 

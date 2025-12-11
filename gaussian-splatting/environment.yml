@@ -18,8 +18,8 @@ dependencies:
   - torchvision
   - tqdm
   - pip:
-    - submodules/diff-gaussian-rasterization
-    - submodules/simple-knn
-    - submodules/fused-ssim
+    - submodules/diff-gaussian-rasterization --install-option="--no-build-isolation"  
+    # - submodules/simple-knn
+    - submodules/fused-ssim --install-option="--no-build-isolation"
     - opencv-python
     - joblib
